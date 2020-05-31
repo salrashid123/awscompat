@@ -173,14 +173,17 @@ import (
 
 const ()
 
+// https://pkg.go.dev/google.golang.org/api@v0.23.0/idtoken
+
 func main() {
 
 	aud := "https://foo.bar"
 	jsonCert := "/path/to/svc.json"
 
 	ctx := context.Background()
-
 	ts, err := idtoken.NewTokenSource(ctx, aud, idtoken.WithCredentialsFile(jsonCert))
+	// or on GCE/GKE/Run/GCF, omit the certificate file
+	//ts, err := idtoken.NewTokenSource(ctx, aud)
 	if err != nil {
 		log.Fatalf("unable to create TokenSource: %v", err)
 	}
