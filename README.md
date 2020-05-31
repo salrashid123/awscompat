@@ -9,6 +9,8 @@ Essentially, this is a golang snippet and configuration that uses AWS's [IAM Rol
 
 [Firebase](https://firebase.google.com/) and [Google Cloud Identity Platform](https://cloud.google.com/identity-platform/docs) based `id_tokens` can also be uses for this exchange but is not wrapped into this library (critically since there isn't a golang client library to acquire them).  
 
+>> *NOTE*: the code in this repo is not supported by google.
+
 ### References
 
 #### AWS
@@ -156,20 +158,20 @@ package main
 import (
 	"context"
 	"fmt"
-
-	"log"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"io/ioutil"
+	"log"
+	"time"
 
-  "github.com/salrashid123/awscompat/google"
+	awscompat "github.com/salrashid123/awscompat/google"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
 )
 
 const ()
-
 
 func main() {
 
@@ -178,14 +180,12 @@ func main() {
 
 	ctx := context.Background()
 
-  ts, err := idtoken.NewTokenSource(ctx, aud, idtoken.WithCredentialsFile(jsonCert))
-  // or with GCE/GKE metadata credentials
-  //ts, err := idtoken.NewTokenSource(ctx, aud)
+	ts, err := idtoken.NewTokenSource(ctx, aud, idtoken.WithCredentialsFile(jsonCert))
 	if err != nil {
 		log.Fatalf("unable to create TokenSource: %v", err)
 	}
 
-	creds, err := google.NewGCPAWSCredentials(ts, &sts.AssumeRoleWithWebIdentityInput{
+	creds, err := awscompat.NewGCPAWSCredentials(ts, &sts.AssumeRoleWithWebIdentityInput{
 		RoleArn:         aws.String("arn:aws:iam::291738886548:role/s3webreaderrole"),
 		RoleSessionName: aws.String("app1"),
 	})
@@ -205,13 +205,44 @@ func main() {
 	}
 
 	for _, item := range sresp.Contents {
-		fmt.Println("Name:         ", *item.Key)
+		fmt.Printf("Name %v  %v\n:", time.Now(), *item.Key)
 	}
 
 }
 ```
 
-Just note `"google.golang.org/api/idtoken"` will only provide `id_tokens` for service accounts.   It does not support user-based id_tokens.
+Just note 
+
+- `"google.golang.org/api/idtoken"` will only provide `id_tokens` for service accounts.   It does not support user-based id_tokens.
+
+- If for some reason you need to first acquire an _impersonated_ credential's `id_token`, you will need to first acquire Google Credentials that represents the impersonated account (`ImperstonatedTokenSource`) and then apply it into the `IdTokenSource`). (i.,e you need to two Google TokenSources together and provide the final id_token to the library in this repo)
+
+For more information, see [google.impersonatedTokenSource](https://github.com/salrashid123/oauth2#usage-impersonatedcredentials) and [code](https://github.com/salrashid123/oauth2/blob/master/google/idtoken.go#L123)
+
+For that matter, you could use `"github.com/salrashid123/oauth2/google"` as the id_token provider on GCP as shown below but that is unsupported (this repo is also unsupported)
+
+
+```golang
+import (
+  	sal "github.com/salrashid123/oauth2/google"
+)
+
+	scopes := "https://www.googleapis.com/auth/userinfo.email"
+	data, err := ioutil.ReadFile(jsonCert)
+	if err != nil {
+		log.Fatal(err)
+	}
+	gcreds, err := google.CredentialsFromJSON(ctx, data, scopes)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ts, err := sal.IdTokenSource(
+		&sal.IdTokenConfig{
+			Credentials: gcreds,
+			Audiences:   []string{aud},
+		},
+	)
+```
 
 ---
 
@@ -344,4 +375,8 @@ $  curl -s "https://sts.amazonaws.com/?Action=AssumeRoleWithWebIdentity&Duration
 </AssumeRoleWithWebIdentityResponse>
 ```
 
-One more note about Firebase/Cloud Identity:  You can use it to define external identities itself (eg, Google, Facebook, AOL, other OIDC, other SAML, etc).  That means you can chain identities together though Identity Platform.   Turtles all the way down (or atleast a couple of levels).
+One more note about Firebase/Cloud Identity:  You can use it to define external identities itself (eg, Google, Facebook, AOL, other OIDC, other SAML, etc). 
+
+That means you can chain identities together though Identity Platform.   
+
+Turtles all the way down (or atleast a couple of levels).
