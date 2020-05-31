@@ -147,6 +147,9 @@ $ aws s3 ls mineral-minutia --region us-east-2
 
 To make this easier, the golang library contained in this repo wraps these steps and provides an AWS `Credential` object for you:
 
+
+#### Usage
+
 ```golang
 package main
 
@@ -175,7 +178,9 @@ func main() {
 
 	ctx := context.Background()
 
-	ts, err := idtoken.NewTokenSource(ctx, aud, idtoken.WithCredentialsFile(jsonCert))
+  ts, err := idtoken.NewTokenSource(ctx, aud, idtoken.WithCredentialsFile(jsonCert))
+  // or with GCE/GKE metadata credentials
+  //ts, err := idtoken.NewTokenSource(ctx, aud)
 	if err != nil {
 		log.Fatalf("unable to create TokenSource: %v", err)
 	}
@@ -244,13 +249,13 @@ firebase.auth().signInWithEmailAndPassword(email, password).then(result => {
   }
 }
 ```
-
-Once you have the id_token, decode as done earlier to fin the `sub` value.  THis will be unqiue to each Firebase project even if the same actual user logs into multiple projects.
-
-
-
+You can find a sample Firebase app that acquires an `id_token` here:
 
 [Firebase Storage and Authorization Rules engine 'helloworld'](https://blog.salrashid.me/posts/firebase_storage_rules/)
+
+Once you have the id_token, decode as done earlier to fin the `sub` value.  THis will be unique to each Firebase project even if the same actual user logs into multiple projects.
+
+
 
 First define an external provider:
 
