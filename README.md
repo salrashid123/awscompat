@@ -249,11 +249,11 @@ import (
 
 ---
 
-### Firebase/Cloud Identity OIDC
+### Firebase/Identity Platform OIDC
 
-Firebase and Cloud Identity can also provide OIDC tokens.  For example, the OIDC `.well-known` endpoint below for a given Firebase Project is discoverable by AWS as an external provider:
+Firebase and [Identity Platform](https://cloud.google.com/identity-platform) can also provide OIDC tokens.  For example, the OIDC `.well-known` endpoint below for a given Firebase Project is discoverable by AWS as an external provider:
 
-For my Firebase/Cloud Identity Project (it just happens to be called `mineral-minutia-820`:
+For my Firebase/Cloud Identity Platform Project, (called `mineral-minutia-820` below):
 
 - [https://securetoken.google.com/mineral-minutia-820/.well-known/openid-configuration](https://securetoken.google.com/mineral-minutia-820/.well-known/openid-configuration)
 
@@ -378,7 +378,7 @@ $  curl -s "https://sts.amazonaws.com/?Action=AssumeRoleWithWebIdentity&Duration
 </AssumeRoleWithWebIdentityResponse>
 ```
 
-One more note about Firebase/Cloud Identity:  You can use it to define external identities itself (eg, Google, Facebook, AOL, other OIDC, other SAML, etc). 
+One more note about Firebase/Cloud Identity Platform:  You can use it to define external identities itself (eg, Google, Facebook, AOL, other OIDC, other SAML, etc). 
 
 That means you can chain identities together though Identity Platform.   
 
