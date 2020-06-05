@@ -150,7 +150,69 @@ $ aws s3 ls mineral-minutia --region us-east-2
 To make this easier, the golang library contained in this repo wraps these steps and provides an AWS `Credential` object for you:
 
 
-#### Usage
+### Usage
+
+There are several ways to exchange GCP credentials for AWS:
+
+You can either delegate the task to get credentials to an external AWS `ProcessCredential` binary or perform the exchange in code as shown in this repo.
+
+#### Process Credentials
+
+In the `ProcessCredential` approach, AWS's client library and CLI will automatically invoke whatever binary is specified in aws's config file.  That binary will acquire a Google IDToken and then exchange it for a `WebIdentityToken` SessionToken from the AWS STS server.  Finally, the binary will emit the tokens to stdout in a specific format that AWS expects.  
+
+For more information, see [Sourcing credentials with an external process](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sourcing-external.html) and [AWS Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+
+To use the process credential binary here, first
+
+1. Build the binary
+
+```bash
+go build  -o gcp-process-credentials main.go
+```
+
+2. Create AWS Config file
+
+create a config file under `~/.aws/config` and specify the path to the binary, the ARN role and optionally the path to a specific gcp service account credential.
+```bash
+[default]
+credential_process = /path/to/gcp-process-credentials  --aws-arn arn:aws:iam::291738886548:role/s3webreaderrole  --gcp-credential-file /path/to/svc.json
+```
+In the snippet above, i've specified the GCP ServiceAccount Credentials file path.  If you omit that parameter, the binary will use [Google Application Default Credential](https://cloud.google.com/docs/authentication/production) to seek out the appropriate Google Credential Source.   
+
+For example, if you run the binary on GCP VM, it will use the metadata server to get the id_token.   If you specify the ADC Environment varible `GOOGLE_APPLICATION_CREDENTIALS=/path/to.json`, the binary will use the service account specified there
+
+3. Invoke AWS CLI or SDK library
+
+Then either use the AWS CLI or any SDK client in any language.  The library will invoke the process credential for you and acquire the AWS token.
+
+```bash
+$ aws s3 ls mineral-minutia --region us-east-2
+```
+
+The example output from the binary is just JSON:
+
+```bash
+$ gcp-process-credentials  --aws-arn arn:aws:iam::291738886548:role/s3webreaderrole  --gcp-credential-file /path//to/svc.json | jq '.'
+{
+  "Version": 1,
+  "AccessKeyId": "ASIAUH3H6EGKL7...",
+  "SecretAccessKey": "YnjWyQFDeeqkRVJQit2uaj+...",
+  "SessionToken": "FwoGZ...",
+  "Expiration": "2020-06-05T19:24:57+0000"
+}
+```
+
+### Language Native
+
+The other approach is to exchange the GoogleID token for an AWS one using the AWS Language library itself.  This has the advantage of being "self contained" in that there is no need for an external binary to get installed on the system.
+
+The snippet below demonstrate how to do this in various languages.   For golang and java specifically, the exchange is done a custom AWS credential wrapper which has the distinct advantage of being "managed" just like any other standard AWS Credential type in that any refresh() that is needed on the underlying credential will be self-managed.
+
+At the moment (5/5/20), I havne't been able to figure out how to do this with python..
+
+#### Golang
+
+To use the managed credential in golang, import `"github.com/salrashid123/awscompat/google"` as shown below
 
 ```golang
 package main
@@ -172,8 +234,6 @@ import (
 )
 
 const ()
-
-// https://pkg.go.dev/google.golang.org/api@v0.23.0/idtoken
 
 func main() {
 
@@ -248,6 +308,84 @@ import (
 ```
 
 ---
+
+
+#### Java
+
+In Java, the `GCPAWSCredentialProviderl` is included directly in this repo (`java/src/main/java/com/google/awscompat/GCPAWSCredentialProvider.java`) as well as the test app  that acquired googleID tokens from various sources`java/src/main/java/com/test/Main.java`
+
+```java
+
+          // Using default ProcessCredentials
+          // AmazonS3 s3 =
+          // AmazonS3ClientBuilder.standard().withRegion(Regions.US_EAST_2).build();
+
+          // or
+          // Get an IDToken from the source system.
+          // IdTokenCredentials tok = tc.getIDTokenFromComputeEngine(target_audience);
+
+          // in this case, its using a service account file:
+          ServiceAccountCredentials sac = ServiceAccountCredentials.fromStream(new FileInputStream(credFile));
+          sac = (ServiceAccountCredentials) sac.createScoped(Arrays.asList(CLOUD_PLATFORM_SCOPE));
+
+          IdTokenCredentials tok = tc.getIDTokenFromServiceAccount(sac, target_audience);
+
+          // then specify the GCPAWSCredentialProvider.googleCredential() value
+          String roleArn = "arn:aws:iam::291738886548:role/s3webreaderrole";
+          AmazonS3 s3 = AmazonS3ClientBuilder.standard().withRegion(Regions.US_EAST_2)
+                    .withCredentials(GCPAWSCredentialProvider.builder().roleArn(roleArn).roleSessionName(null)
+                              .googleCredentials(tok).build())
+                    .build();
+
+```
+
+#### Python
+
+For Python, a similar flow to acquire a google ID token manually and then add the raw `SessionToken` value in:
+
+```python
+# For other sources of IDTokens, see
+#  https://github.com/salrashid123/google_id_token/blob/master/python/googleidtokens.py#L33
+
+def getIdToken():
+    svcAccountFile ="/path/to/svc.json"
+    target_audience="https://sts.amazonaws.com"
+    creds = service_account.IDTokenCredentials.from_service_account_file(
+            svcAccountFile,
+            target_audience= target_audience)
+    request = google.auth.transport.requests.Request()
+    creds.refresh(request)
+    return creds.token
+
+
+# Using Specify Credentials and SessionToken
+sts_client = boto3.client('sts')
+
+assumed_role_object = sts_client.assume_role_with_web_identity(
+    RoleArn="arn:aws:iam::291738886548:role/s3webreaderrole",
+    RoleSessionName="AssumeRoleSession1",
+    WebIdentityToken=getIdToken(),
+    DurationSeconds=900
+)
+credentials = assumed_role_object['Credentials']
+
+s3_resource = boto3.resource(
+    's3',
+    aws_access_key_id=credentials['AccessKeyId'],
+    aws_secret_access_key=credentials['SecretAccessKey'],
+    aws_session_token=credentials['SessionToken'],
+)
+
+bkt = s3_resource.Bucket('mineral-minutia')
+for my_bucket_object in bkt.objects.all():
+    print(my_bucket_object)
+```
+
+To Note, the `boto3.resource()` takes the raw value of the `SessionToken` which means once it expires, the `s3_resource` will also fail and not renew.
+
+I havne't been able to figure out how to create a managed `Credential` object in AWS python boto library set that would handle the refresh of the underlying token for you.
+
+
 
 ### Firebase/Identity Platform OIDC
 

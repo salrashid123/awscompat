@@ -1,10 +1,9 @@
 package google
 
 import (
+
 	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-
 	creds "github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -16,10 +15,14 @@ const (
 	refreshTolerance = 60
 )
 
+var (
+	stsOutput *sts.AssumeRoleWithWebIdentityOutput
+)
+
 type GCPProvider struct {
 	identityInput sts.AssumeRoleWithWebIdentityInput
 	tokenSource   oauth2.TokenSource
-	expiry        *time.Time
+	expiration time.Time
 }
 
 func NewGCPAWSCredentials(ts oauth2.TokenSource, cfg *sts.AssumeRoleWithWebIdentityInput) (creds.Credentials, error) {
@@ -35,27 +38,30 @@ func (s *GCPProvider) Retrieve() (creds.Value, error) {
 
 	sess, err := session.NewSession(&aws.Config{})
 	svc := sts.New(sess)
-	result, err := svc.AssumeRoleWithWebIdentity(&s.identityInput)
+	stsOutput, err = svc.AssumeRoleWithWebIdentity(&s.identityInput)
 	if err != nil {
 		return creds.Value{}, err
 	}
-
+	
 	v := creds.Value{
-		AccessKeyID:     aws.StringValue(result.Credentials.AccessKeyId),
-		SecretAccessKey: aws.StringValue(result.Credentials.SecretAccessKey),
-		SessionToken:    aws.StringValue(result.Credentials.SessionToken),
+		AccessKeyID:     aws.StringValue(stsOutput.Credentials.AccessKeyId),
+		SecretAccessKey: aws.StringValue(stsOutput.Credentials.SecretAccessKey),
+		SessionToken:    aws.StringValue(stsOutput.Credentials.SessionToken),
 	}
 	if v.ProviderName == "" {
 		v.ProviderName = GCPProviderName
 	}
-	s.expiry = result.Credentials.Expiration
-
+	s.expiration = *stsOutput.Credentials.Expiration
 	return v, nil
 }
 
 func (s *GCPProvider) IsExpired() bool {
-	if time.Now().Add(time.Second * time.Duration(refreshTolerance)).After(*s.expiry) {
+	if time.Now().Add(time.Second * time.Duration(refreshTolerance)).After(s.expiration) {
 		return true
 	}
 	return false
+}
+
+func (s *GCPProvider) ExpiresAt() time.Time {
+	return s.expiration
 }
