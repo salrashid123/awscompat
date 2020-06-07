@@ -11,6 +11,13 @@ Essentially, this is a golang snippet and configuration that uses AWS's [IAM Rol
 
 >> *NOTE*: the code in this repo is not supported by google.
 
+### Implementations
+
+* [golang](#golang)
+* [java](#java)
+* [python](#python)
+* [dotnet](#dotnet)
+
 ### References
 
 #### AWS
@@ -99,7 +106,8 @@ $ gcloud iam service-accounts describe svc-2-429@mineral-minutia-820.iam.gservic
 
 Use this `uniqueId` value in the AWS IAM Role policy as shown above.
 
-  (Note, I tried to specify an audience value (`"accounts.google.com:aud": "https://someaud"`) but that didn't seem to work)
+>> *Note*:  I tried to specify an audience value (`"accounts.google.com:aud": "https://someaud"`) within the AWS policy but that didn't seem to work)
+Which means while the `audience` (aud) value is specified in some of the samples here (eg `"https://sts.amazonaws.com/` or `https://foo.bar`) can be anything since its not even currently used in the AWS condition policy)
 
 
 Export the token and invoke the STS endpoint using the `RoleArn=` value defined earlier
@@ -385,6 +393,44 @@ To Note, the `boto3.resource()` takes the raw value of the `SessionToken` which 
 
 I havne't been able to figure out how to create a managed `Credential` object in AWS python boto library set that would handle the refresh of the underlying token for you.
 
+#### Dotnet
+
+For dotnet, you can either acquire a GoogleOIDC token and inject it into a static STS client or use the wrapped `GoogleCompatCredentials` object provided in this repo
+
+```csharp
+  public class GoogleCompatCredentials : RefreshingAWSCredentials
+```
+
+The usage of both modes is shown in `dotnet/Main.cs` while if you just want to use the wrapped version:
+
+You can bootstrap `GoogleCompatCredentials`  using any Google source Credential object that implements its `Google.Apis.Auth.OAuth2.IOidcTokenProvider` interface.  In the case below, its using `ServiceAccountCredential`
+
+```csharp
+                ServiceAccountCredential saCredential;
+                using (var fs = new FileStream(CREDENTIAL_FILE_JSON, FileMode.Open, FileAccess.Read))
+                {
+                    saCredential = ServiceAccountCredential.FromServiceAccountData(fs);
+                }
+                var getSessionTokenRequest = new AssumeRoleWithWebIdentityRequest
+                {
+                    RoleSessionName = "testsession",
+                    RoleArn = roleArn,
+                };
+                var targetAudience = "https://sts.amazonaws.com/";  // this can be any value (not used in this example)
+                var cc = new GoogleCompatCredentials(saCredential, targetAudience, getSessionTokenRequest);
+                using (s3Client = new AmazonS3Client(cc, bucketRegion))
+                {
+                    var listObjectRequest = new ListObjectsRequest
+                    {
+                        BucketName = bucketName
+                    };
+                    ListObjectsResponse response = await s3Client.ListObjectsAsync(listObjectRequest);
+                    List<S3Object> objects = response.S3Objects;
+                    foreach (S3Object o in objects)  {
+                       Console.WriteLine("Object  = {0}", o.Key);
+                    }
+                }
+```
 
 
 ### Firebase/Identity Platform OIDC
@@ -411,7 +457,7 @@ var firebaseConfig = {
     apiKey: "...",
     authDomain: "...",
     projectId: "...",
-    storageBucket: "...",    
+    storageBucket: "...",
   };
   
 firebase.initializeApp(firebaseConfig);
