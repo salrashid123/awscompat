@@ -1,11 +1,9 @@
 ### Google and Firebase OIDC tokens for AWS STS
 
 
-Simple Golang [AWS Credential Provider](https://docs.aws.amazon.com/sdk-for-go/api/aws/credentials/) that uses [Google OIDC tokens](https://github.com/salrashid123/google_id_token).
+Simple [AWS Credential Provider](https://docs.aws.amazon.com/sdk-for-go/api/aws/credentials/) that uses [Google OIDC tokens](https://github.com/salrashid123/google_id_token).
 
-The code snippet below and library will acquire a Google OIDC token, exchange it for an AWS STS token and surface that as AWS Credential object.
-
-Essentially, this is a golang snippet and configuration that uses AWS's [IAM Role using External Identities](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html).  The code below wraps exchanges a Google OIDC tokens with AWS STS endpoint and finally configures the acquired credentials in a format that is usable for any AWS standard service library.
+Essentially, this will allow you to use a google `id_token` for AWS STS `session_token` and then access an aws resource that you've configured an Access Policy for the google identity.  This repo creates an `AWS Credential` derived from a `Google Credential` with the intent of using it for AWS's [IAM Role using External Identities](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html).
 
 [Firebase](https://firebase.google.com/) and [Google Cloud Identity Platform](https://cloud.google.com/identity-platform/docs) based `id_tokens` can also be uses for this exchange but is not wrapped into this library (critically since there isn't a golang client library to acquire them).  
 
@@ -17,6 +15,7 @@ Essentially, this is a golang snippet and configuration that uses AWS's [IAM Rol
 * [java](#java)
 * [python](#python)
 * [dotnet](#dotnet)
+* [nodejs](#nodejs)
 
 ### References
 
@@ -432,6 +431,44 @@ You can bootstrap `GoogleCompatCredentials`  using any Google source Credential 
                 }
 ```
 
+#### nodejs
+
+For node, you can either acquire a GoogleOIDC token and inject it into a static STS client or use the wrapped `GoogleCompatCredentials` object provided in this repo
+
+
+```javascript
+const AWS = require('aws-sdk');
+const { GoogleAuth } = require('google-auth-library');
+
+AWS.config.region = 'us-east-2';
+
+require('./google_compat_credentials.js');
+
+const audience = 'https://sts.amazonaws.com/';
+const roleArn = 'arn:aws:iam::291738886548:role/s3webreaderrole';
+
+
+  const auth = new GoogleAuth();
+  const client = await auth.getIdTokenClient(
+    audience
+  );
+
+
+  AWS.config.credentials = new GoogleCompatCredentials({
+    RoleArn: roleArn,
+    RoleSessionName: "testsession"
+  }, client);
+
+  var s3 = new AWS.S3();
+  var params = {
+    Bucket: 'mineral-minutia',
+  }
+  s3.listObjects(params, function (err, data) {
+    if (err) throw err;
+    console.log(data);
+  });
+
+```
 
 ### Firebase/Identity Platform OIDC
 

@@ -1,0 +1,14 @@
+{
+  "name": "myapp",
+  "version": "0.0.0",
+  "scripts": {},
+  "dependencies": {
+    "aws-sdk": "^2.691.0",
+    "axios": "0.18.0",
+    "debug": "4.1.1",
+    "google-auth-library": "^v5.9.0",
+    "google-auto-auth": "0.10.1",
+    "jws": "*",
+    "node-jose": "*"
+  }
+}
