@@ -1,4 +1,4 @@
-### Google and Firebase OIDC tokens for AWS STS
+### Exchange Google and Firebase OIDC tokens for AWS STS
 
 
 Simple [AWS Credential Provider](https://docs.aws.amazon.com/sdk-for-go/api/aws/credentials/) that uses [Google OIDC tokens](https://github.com/salrashid123/google_id_token).
