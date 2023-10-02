@@ -285,34 +285,6 @@ Just note
 
 - `"google.golang.org/api/idtoken"` will only provide `id_tokens` for service accounts.   It does not support user-based id_tokens.
 
-- If for some reason you need to first acquire an _impersonated_ credential's `id_token`, you will need to first acquire Google Credentials that represents the impersonated account (`ImperstonatedTokenSource`) and then apply it into the `IdTokenSource`). (i.,e you need to two Google TokenSources together and provide the final id_token to the library in this repo)
-
-For more information, see [google.impersonatedTokenSource](https://github.com/salrashid123/oauth2#usage-impersonatedcredentials) and [code](https://github.com/salrashid123/oauth2/blob/master/google/idtoken.go#L123)
-
-For that matter, you could use `"github.com/salrashid123/oauth2/google"` as the id_token provider on GCP as shown below but that is unsupported (this repo is also unsupported)
-
-
-```golang
-import (
-  	sal "github.com/salrashid123/oauth2/google"
-)
-
-	scopes := "https://www.googleapis.com/auth/userinfo.email"
-	data, err := ioutil.ReadFile(jsonCert)
-	if err != nil {
-		log.Fatal(err)
-	}
-	gcreds, err := google.CredentialsFromJSON(ctx, data, scopes)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ts, err := sal.IdTokenSource(
-		&sal.IdTokenConfig{
-			Credentials: gcreds,
-			Audiences:   []string{aud},
-		},
-	)
-```
 
 ---
 
