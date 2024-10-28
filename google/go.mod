@@ -1,4 +1,4 @@
-module google
+module github.com/salrashid123/awscompat/google
 
 go 1.22.4
 
