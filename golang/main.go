@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/sts"
-	"log"
 	"time"
+
+	"log"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	awscompat "github.com/salrashid123/awscompat/google"
 	"google.golang.org/api/idtoken"
@@ -29,21 +31,20 @@ func main() {
 		log.Fatalf("unable to create TokenSource: %v", err)
 	}
 
-	creds, err := awscompat.NewGCPAWSCredentials(ts, &sts.AssumeRoleWithWebIdentityInput{
-		RoleArn:         aws.String("arn:aws:iam::291738886548:role/s3webreaderrole"),
+	region := "us-east-2"
+	creds, err := awscompat.NewGCPAWSCredentials(ts, region, &sts.AssumeRoleWithWebIdentityInput{
+		RoleArn:         aws.String("arn:aws:iam::291738886548:role/s3role"),
 		RoleSessionName: aws.String("app1"),
 	})
 	if err != nil {
-		log.Fatalf("Error creatint Credentials  %v", err)
+		log.Fatalf("Error creating Credentials  %v", err)
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Credentials: &creds,
-		Region:      aws.String("us-east-2")},
-	)
-	svcs3 := s3.New(sess)
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region), config.WithCredentialsProvider(creds))
 
-	sresp, err := svcs3.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String("mineral-minutia")})
+	s3client := s3.NewFromConfig(cfg)
+
+	sresp, err := s3client.ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{Bucket: aws.String("mineral-minutia")})
 	if err != nil {
 		log.Fatalf("Error listing objects:  %v", err)
 	}

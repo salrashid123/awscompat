@@ -171,7 +171,7 @@ For more information, see [Sourcing credentials with an external process](https:
 
 To use the process credential binary here, first
 
-1. Build the binary
+1. Build the binary (or download from "Releases" page)
 
 ```bash
 go build  -o gcp-process-credentials main.go
@@ -199,6 +199,7 @@ $ aws s3 ls mineral-minutia --region us-east-2
 The example output from the binary is just JSON:
 
 ```bash
+
 $ gcp-process-credentials  --aws-arn arn:aws:iam::291738886548:role/s3webreaderrole  --gcp-credential-file /path//to/svc.json | jq '.'
 {
   "Version": 1,
@@ -227,16 +228,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/sts"
-	"io/ioutil"
-	"log"
 	"time"
 
+	"log"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+
 	awscompat "github.com/salrashid123/awscompat/google"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
 )
 
@@ -255,21 +256,20 @@ func main() {
 		log.Fatalf("unable to create TokenSource: %v", err)
 	}
 
-	creds, err := awscompat.NewGCPAWSCredentials(ts, &sts.AssumeRoleWithWebIdentityInput{
-		RoleArn:         aws.String("arn:aws:iam::291738886548:role/s3webreaderrole"),
+	region := "us-east-2"
+	creds, err := awscompat.NewGCPAWSCredentials(ts, region, &sts.AssumeRoleWithWebIdentityInput{
+		RoleArn:         aws.String("arn:aws:iam::291738886548:role/s3role"),
 		RoleSessionName: aws.String("app1"),
 	})
 	if err != nil {
-		log.Fatalf("Error creatint Credentials  %v", err)
+		log.Fatalf("Error creating Credentials  %v", err)
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Credentials: &creds,
-		Region:      aws.String("us-east-2")},
-	)
-	svcs3 := s3.New(sess)
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region), config.WithCredentialsProvider(creds))
 
-	sresp, err := svcs3.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String("mineral-minutia")})
+	s3client := s3.NewFromConfig(cfg)
+
+	sresp, err := s3client.ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{Bucket: aws.String("mineral-minutia")})
 	if err != nil {
 		log.Fatalf("Error listing objects:  %v", err)
 	}
@@ -279,9 +279,10 @@ func main() {
 	}
 
 }
+
 ```
 
-Just note 
+Just note
 
 - `"google.golang.org/api/idtoken"` will only provide `id_tokens` for service accounts.   It does not support user-based id_tokens.
 
@@ -468,7 +469,7 @@ var firebaseConfig = {
     projectId: "...",
     storageBucket: "...",
   };
-  
+
 firebase.initializeApp(firebaseConfig);
 firebase.auth().signInWithEmailAndPassword(email, password).then(result => {
   firebase.auth().currentUser.getIdToken(true).then(function(idToken) {
@@ -571,7 +572,7 @@ $  curl -s "https://sts.amazonaws.com/?Action=AssumeRoleWithWebIdentity&Duration
 </AssumeRoleWithWebIdentityResponse>
 ```
 
-One more note about Firebase/Cloud Identity Platform:  You can use it to define external identities itself (eg, Google, Facebook, AOL, other OIDC, other SAML, etc). 
+One more note about Firebase/Cloud Identity Platform:  You can use it to define external identities itself (eg, Google, Facebook, AOL, other OIDC, other SAML, etc).
 
 That means you can chain identities together though Identity Platform.   
 
