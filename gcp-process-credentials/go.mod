@@ -1,4 +1,4 @@
-module github.com/salrashid123/awscompat/gcp-process-credentials
+module main
 
 go 1.22.4
 
