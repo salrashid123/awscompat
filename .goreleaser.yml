@@ -16,6 +16,7 @@ scoop:
   goamd64: v1
 builds:
   - id: awscompat
+    main: ./gcp-process-credentials/
     goos:
       - linux
       - darwin
@@ -42,8 +43,8 @@ archives:
     format: tar.gz
     files:
       - LICENSE*
-      - README*    
-      - dist/*.sig      
+      - README*
+      - dist/*.sig
 snapshot:
   name_template: '{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}'
 checksum:
