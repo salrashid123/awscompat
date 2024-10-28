@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/service/sts v1.32.2
 	github.com/google/uuid v1.6.0
-	github.com/salrashid123/awscompat/google v0.0.0
+	github.com/salrashid123/awscompat v0.0.0
 	google.golang.org/api v0.203.0
 )
 
@@ -47,4 +47,4 @@ require (
 	google.golang.org/protobuf v1.35.1 // indirect
 )
 
-replace github.com/salrashid123/awscompat/google => ../google
+replace github.com/salrashid123/awscompat => ../

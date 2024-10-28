@@ -237,7 +237,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
-	awscompat "github.com/salrashid123/awscompat/google"
+	awscompat "github.com/salrashid123/awscompat"
 	"google.golang.org/api/idtoken"
 )
 

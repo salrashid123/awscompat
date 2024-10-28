@@ -16,7 +16,6 @@ scoop:
   goamd64: v1
 builds:
   - id: awscompat
-    main: ./gcp-process-credentials/
     goos:
       - linux
       - darwin
