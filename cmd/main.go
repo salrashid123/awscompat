@@ -24,7 +24,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-
 	"github.com/google/uuid"
 	awscompat "github.com/salrashid123/awscompat"
 	"golang.org/x/oauth2"
