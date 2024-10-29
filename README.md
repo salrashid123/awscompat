@@ -182,7 +182,7 @@ go build  -o gcp-process-credentials main.go
 create a config file under `~/.aws/config` and specify the path to the binary, the ARN role and optionally the path to a specific gcp service account credential.
 ```bash
 [default]
-credential_process = /path/to/gcp-process-credentials  --aws-arn arn:aws:iam::291738886548:role/s3webreaderrole  --gcp-credential-file /path/to/svc.json
+credential_process = /path/to/gcp-process-credentials  --aws-arn arn:aws:iam::291738886548:role/s3webreaderrole  --gcp-credential-file /path/to/svc.json  --region=us-east-2
 ```
 In the snippet above, i've specified the GCP ServiceAccount Credentials file path.  If you omit that parameter, the binary will use [Google Application Default Credential](https://cloud.google.com/docs/authentication/production) to seek out the appropriate Google Credential Source.   
 
@@ -200,7 +200,7 @@ The example output from the binary is just JSON:
 
 ```bash
 
-$ gcp-process-credentials  --aws-arn arn:aws:iam::291738886548:role/s3webreaderrole  --gcp-credential-file /path//to/svc.json | jq '.'
+$ gcp-process-credentials  --aws-arn arn:aws:iam::291738886548:role/s3webreaderrole  --gcp-credential-file /path//to/svc.json  --region=us-east-2 | jq '.'
 {
   "Version": 1,
   "AccessKeyId": "ASIAUH3H6EGKL7...",
@@ -220,7 +220,7 @@ At the moment (5/5/20), I havne't been able to figure out how to do this with py
 
 #### Golang
 
-To use the managed credential in golang, import `"github.com/salrashid123/awscompat/google"` as shown below
+To use the managed credential in golang, import `"github.com/salrashid123/awscompat"` as shown below
 
 ```golang
 package main
@@ -363,7 +363,9 @@ for my_bucket_object in bkt.objects.all():
 
 To Note, the `boto3.resource()` takes the raw value of the `SessionToken` which means once it expires, the `s3_resource` will also fail and not renew.
 
-I havne't been able to figure out how to create a managed `Credential` object in AWS python boto library set that would handle the refresh of the underlying token for you.
+I haven't been able to figure out how to create a managed `Credential` object in AWS python boto library set that would handle the refresh of the underlying token for you.
+
+Another approach would be to use a `CredentialProvier` as shown in [here](https://github.com/salrashid123/cloud_auth_tpm/blob/main/cloud_auth_tpm/aws/awscredentials.py)
 
 #### Dotnet
 
